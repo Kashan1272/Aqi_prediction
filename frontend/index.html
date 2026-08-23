@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Pearls AQI Predictor</title>
+  <style>
+    :root{
+      --bg:#07111f;--panel:#0d1b2d;--panel2:#10243a;--line:rgba(148,163,184,.18);
+      --text:#eef6ff;--muted:#9fb4ca;--cyan:#22d3ee;--teal:#2dd4bf;--amber:#fbbf24;
+      --shadow:0 22px 60px rgba(0,0,0,.35)
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;background:
+      radial-gradient(circle at 12% 5%,rgba(34,211,238,.14),transparent 26%),
+      radial-gradient(circle at 90% 15%,rgba(45,212,191,.12),transparent 24%),var(--bg);color:var(--text)}
+    .shell{max-width:1500px;margin:auto;padding:24px}
+    .nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+    .brand{font-weight:800;letter-spacing:.2px}.brand span{color:var(--cyan)}
+    .status{font-size:12px;color:var(--muted);display:flex;gap:8px;align-items:center}
+    .dot{width:8px;height:8px;border-radius:50%;background:var(--teal);box-shadow:0 0 16px var(--teal)}
+    .hero{padding:30px;border:1px solid var(--line);border-radius:28px;background:linear-gradient(135deg,rgba(13,27,45,.96),rgba(15,74,82,.8));box-shadow:var(--shadow)}
+    .hero-row{display:grid;grid-template-columns:1.6fr .8fr;gap:24px;align-items:end}
+    h1{font-size:clamp(34px,5vw,68px);line-height:.98;margin:0 0 12px;max-width:850px}
+    .sub{color:var(--muted);max-width:760px;font-size:16px;line-height:1.6}
+    select,button{width:100%;border-radius:14px;border:1px solid var(--line);background:#091728;color:var(--text);padding:14px;font:inherit}
+    button{background:linear-gradient(135deg,#0e7490,#0f766e);font-weight:700;cursor:pointer;margin-top:10px}
+    .metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:16px 0}
+    .metric,.card,.panel{border:1px solid var(--line);background:rgba(13,27,45,.86);border-radius:20px;box-shadow:0 12px 35px rgba(0,0,0,.2)}
+    .metric{padding:16px}.label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.09em}.metric .value{font-size:25px;font-weight:750;margin-top:8px}
+    .days{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+    .card{padding:20px;position:relative;overflow:hidden}.card:after{content:"";position:absolute;right:-45px;top:-55px;width:130px;height:130px;border-radius:50%;background:rgba(34,211,238,.08)}
+    .day-title{color:var(--muted);font-size:13px}.aqi{font-size:44px;font-weight:800;margin:10px 0 2px}.category{color:var(--teal);font-weight:650}.detail{color:var(--muted);font-size:13px;margin-top:10px;line-height:1.5}
+    .grid{display:grid;grid-template-columns:1.55fr 1fr;gap:14px;margin-top:14px}.panel{padding:18px}
+    .panel h3{margin:0 0 12px}.chart{height:360px;position:relative}
+    svg{width:100%;height:100%;overflow:visible}.axis{stroke:rgba(148,163,184,.22)}.line{fill:none;stroke:var(--cyan);stroke-width:3}.area{fill:rgba(34,211,238,.08)}
+    .providers{display:grid;gap:10px}.provider{padding:12px;border-radius:14px;background:rgba(16,36,58,.65);border:1px solid var(--line);display:flex;justify-content:space-between}
+    .foot{color:var(--muted);font-size:12px;text-align:center;margin:22px}
+    .error{padding:14px;border:1px solid rgba(248,113,113,.5);background:rgba(127,29,29,.3);border-radius:14px;margin-top:12px;display:none}
+    @media(max-width:900px){.hero-row,.grid{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(2,1fr)}.days{grid-template-columns:1fr}.shell{padding:14px}}
+  </style>
+</head>
+<body>
+<div class="shell">
+  <div class="nav">
+    <div class="brand">Pearls <span>AQI</span> Predictor</div>
+    <div class="status"><span class="dot"></span><span id="health">Checking system…</span></div>
+  </div>
+  <section class="hero">
+    <div class="hero-row">
+      <div>
+        <h1>Three-day air quality intelligence for Pakistan.</h1>
+        <div class="sub">Daily mean and peak AQI are predicted by a tested ML ensemble. The 72-hour curve is calibrated from live provider forecasts instead of being scored as noisy hourly targets.</div>
+      </div>
+      <div>
+        <label class="label" for="city">City</label>
+        <select id="city"></select>
+        <button id="load">Load forecast</button>
+      </div>
+    </div>
+    <div class="error" id="error"></div>
+  </section>
+
+  <section class="metrics">
+    <div class="metric"><div class="label">Current Open-Meteo AQI</div><div class="value" id="currentOM">—</div></div>
+    <div class="metric"><div class="label">OpenAQ observed AQI</div><div class="value" id="currentOA">—</div></div>
+    <div class="metric"><div class="label">Test R²</div><div class="value" id="r2">—</div></div>
+    <div class="metric"><div class="label">Test RMSE</div><div class="value" id="rmse">—</div></div>
+    <div class="metric"><div class="label">Data refreshed</div><div class="value" id="fresh">—</div></div>
+  </section>
+
+  <section class="days" id="days"></section>
+
+  <section class="grid">
+    <div class="panel">
+      <h3>Calibrated 72-hour AQI curve</h3>
+      <div class="chart"><svg id="chart" viewBox="0 0 900 330" preserveAspectRatio="none"></svg></div>
+    </div>
+    <div class="panel">
+      <h3>Forecast sources</h3>
+      <div class="providers" id="providers"></div>
+      <div class="detail" style="margin-top:16px">The production model is evaluated on untouched daily targets. Live Open-Meteo, OpenWeather and AQICN forecasts can be blended when configured. OpenAQ is used as current sensor calibration.</div>
+    </div>
+  </section>
+  <div class="foot">Pearls AQI Predictor v6 · FastAPI + HTML · Hopsworks-ready feature store and model registry</div>
+</div>
+<script>
+const citySelect=document.getElementById('city'), errorBox=document.getElementById('error');
+const fmt=v=>v===null||v===undefined||Number.isNaN(Number(v))?'—':Number(v).toFixed(1);
+async function json(url,opts){const r=await fetch(url,opts);if(!r.ok)throw new Error((await r.json()).detail||r.statusText);return r.json()}
+async function init(){
+  const [health,cities]=await Promise.all([json('/api/v1/health'),json('/api/v1/cities')]);
+  document.getElementById('health').textContent=`${health.configured_cities} cities · ${health.model_available?'model online':'model pending'}`;
+  citySelect.innerHTML=cities.map(c=>`<option value="${c.key}">${c.name} — ${c.province}</option>`).join('');
+  citySelect.value='lahore'; load();
+}
+function draw(values){
+  const svg=document.getElementById('chart');svg.innerHTML='';
+  if(!values.length)return;
+  const W=900,H=330,p=34, ys=values.map(v=>Number(v.aqi)), min=Math.min(...ys,0),max=Math.max(...ys,100);
+  const x=i=>p+i*(W-2*p)/Math.max(1,values.length-1), y=v=>H-p-(v-min)*(H-2*p)/Math.max(1,max-min);
+  let d=values.map((v,i)=>`${i?'L':'M'}${x(i)},${y(v.aqi)}`).join(' ');
+  let area=`M${x(0)},${H-p} `+values.map((v,i)=>`L${x(i)},${y(v.aqi)}`).join(' ')+` L${x(values.length-1)},${H-p} Z`;
+  svg.innerHTML=`<line class="axis" x1="${p}" y1="${H-p}" x2="${W-p}" y2="${H-p}"/><path class="area" d="${area}"/><path class="line" d="${d}"/>`;
+  [0,.25,.5,.75,1].forEach(t=>{const v=min+(max-min)*t, yy=y(v);svg.innerHTML+=`<line class="axis" x1="${p}" y1="${yy}" x2="${W-p}" y2="${yy}"/><text x="2" y="${yy+4}" fill="#9fb4ca" font-size="11">${Math.round(v)}</text>`})
+}
+async function load(){
+  errorBox.style.display='none';
+  try{
+    const p=await json(`/api/v1/forecast/${citySelect.value}`);
+    document.getElementById('currentOM').textContent=fmt(p.current_observations?.open_meteo_aqi);
+    document.getElementById('currentOA').textContent=fmt(p.current_observations?.openaq?.computed_us_aqi);
+    const m=p.model?.test_metrics?.daily_mean||{};
+    document.getElementById('r2').textContent=m.r2===undefined?'—':Number(m.r2).toFixed(3);
+    document.getElementById('rmse').textContent=fmt(m.rmse);
+    document.getElementById('fresh').textContent=new Date(p.generated_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+    document.getElementById('days').innerHTML=p.daily_forecast.map(d=>`
+      <article class="card"><div class="day-title">DAY ${d.horizon_day} · ${d.date}</div>
+      <div class="aqi">${Math.round(d.aqi_mean)}</div><div class="category">${d.category}</div>
+      <div class="detail">Expected peak ${Math.round(d.aqi_max)} · ML interval ${Math.round(d.aqi_mean_lower)}–${Math.round(d.aqi_mean_upper)}</div>
+      <div class="detail">${d.health_message}</div></article>`).join('');
+    draw(p.hourly_forecast||[]);
+    const names=new Set();
+    p.daily_forecast.forEach(d=>Object.keys(d.contributions||{}).forEach(x=>names.add(x)));
+    document.getElementById('providers').innerHTML=[...names].map(n=>`<div class="provider"><span>${n.replaceAll('_',' ')}</span><strong>active</strong></div>`).join('')||'<div class="provider">No provider contributions</div>';
+  }catch(e){errorBox.textContent=e.message;errorBox.style.display='block'}
+}
+document.getElementById('load').addEventListener('click',load);citySelect.addEventListener('change',load);init();
+</script>
+</body>
+</html>

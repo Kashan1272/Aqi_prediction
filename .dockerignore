@@ -1,0 +1,10 @@
+.git
+.github
+.venv
+__pycache__
+data/hourly
+data/predictions
+artifacts/models
+reports
+.env
+tests

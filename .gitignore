@@ -1,0 +1,47 @@
+# Secrets
+.env
+.streamlit/secrets.toml
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+
+# Generated data and models
+data/hourly/*.parquet
+data/hourly/*.csv.gz
+data/predictions/*.json
+data/provider_snapshots/*.parquet
+data/provider_snapshots/*.csv.gz
+artifacts/models/*
+!artifacts/models/.gitkeep
+reports/*
+!reports/.gitkeep
+
+# OS and IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Backup folders
+backup_*/
+
+# Experimental branches
+pearl-aqi-v*/
+
+# Local cache
+.cache/
+
+# Streamlit cache
+.streamlit/cache/
+
+# Temporary files
+*.tmp
+*.bak

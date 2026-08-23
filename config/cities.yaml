@@ -1,0 +1,91 @@
+cities:
+  lahore:
+    name: Lahore
+    country: Pakistan
+    province: Punjab
+    latitude: 31.5204
+    longitude: 74.3587
+    timezone: Asia/Karachi
+    elevation_m: 217
+    priority: 1
+  karachi:
+    name: Karachi
+    country: Pakistan
+    province: Sindh
+    latitude: 24.8607
+    longitude: 67.0011
+    timezone: Asia/Karachi
+    elevation_m: 8
+    priority: 2
+  islamabad:
+    name: Islamabad
+    country: Pakistan
+    province: Islamabad Capital Territory
+    latitude: 33.6844
+    longitude: 73.0479
+    timezone: Asia/Karachi
+    elevation_m: 540
+    priority: 3
+  faisalabad:
+    name: Faisalabad
+    country: Pakistan
+    province: Punjab
+    latitude: 31.4504
+    longitude: 73.1350
+    timezone: Asia/Karachi
+    elevation_m: 184
+    priority: 4
+  multan:
+    name: Multan
+    country: Pakistan
+    province: Punjab
+    latitude: 30.1575
+    longitude: 71.5249
+    timezone: Asia/Karachi
+    elevation_m: 122
+    priority: 5
+  peshawar:
+    name: Peshawar
+    country: Pakistan
+    province: Khyber Pakhtunkhwa
+    latitude: 34.0151
+    longitude: 71.5249
+    timezone: Asia/Karachi
+    elevation_m: 331
+    priority: 6
+  quetta:
+    name: Quetta
+    country: Pakistan
+    province: Balochistan
+    latitude: 30.1798
+    longitude: 66.9750
+    timezone: Asia/Karachi
+    elevation_m: 1680
+    priority: 7
+  hyderabad:
+    name: Hyderabad
+    country: Pakistan
+    province: Sindh
+    latitude: 25.3960
+    longitude: 68.3578
+    timezone: Asia/Karachi
+    elevation_m: 13
+    priority: 8
+  sialkot:
+    name: Sialkot
+    country: Pakistan
+    province: Punjab
+    latitude: 32.4945
+    longitude: 74.5229
+    timezone: Asia/Karachi
+    elevation_m: 256
+    priority: 9
+  abbottabad:
+    name: Abbottabad
+    country: Pakistan
+    province: Khyber Pakhtunkhwa
+    latitude: 34.1688
+    longitude: 73.2215
+    timezone: Asia/Karachi
+    elevation_m: 1256
+    priority: 10
