@@ -52,3 +52,7 @@ pearl-aqi-v*/
 reports/*
 !reports/eda/
 !reports/eda/**
+
+# Commit deep-learning experiment reports
+!reports/deep_learning/
+!reports/deep_learning/**

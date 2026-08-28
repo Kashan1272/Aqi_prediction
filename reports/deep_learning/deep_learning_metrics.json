@@ -1,0 +1,24 @@
+{
+  "experiment": "next_day_aqi_mlp",
+  "framework": "PyTorch",
+  "pytorch_version": "2.13.0+cpu",
+  "device": "cpu",
+  "target": "next-day AQI",
+  "split_method": "chronological 70/15/15",
+  "train_rows": 5100,
+  "validation_rows": 1100,
+  "test_rows": 1100,
+  "feature_count": 32,
+  "deep_model_metrics": {
+    "rmse": 22.67536059128246,
+    "mae": 18.16137242750688,
+    "r2": 0.5433592037863596,
+    "bias": 13.15229679107666
+  },
+  "persistence_baseline_metrics": {
+    "rmse": 20.64119204719383,
+    "mae": 13.248568093270968,
+    "r2": 0.6216133080369948,
+    "bias": -0.07090160832260657
+  }
+}
