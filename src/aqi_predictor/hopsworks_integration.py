@@ -60,21 +60,109 @@ def _prepare(frame: pd.DataFrame) -> pd.DataFrame:
             )
     return result
 
+def _group_features(group: Any) -> list[Any]:
+    """Return the current Hopsworks Feature Group schema."""
+    return list(
+        getattr(group, "columns", None)
+        or getattr(group, "features", None)
+        or []
+    )
+
+
+def _infer_hopsworks_type(series: pd.Series) -> str:
+    """Infer a Hopsworks offline type from a pandas Series."""
+
+    from pandas.api.types import (
+        is_bool_dtype,
+        is_datetime64_any_dtype,
+        is_float_dtype,
+        is_integer_dtype,
+    )
+
+    dtype = series.dtype
+
+    if is_datetime64_any_dtype(dtype):
+        return "timestamp"
+
+    if is_bool_dtype(dtype):
+        return "boolean"
+
+    if is_integer_dtype(dtype):
+        itemsize = getattr(dtype, "itemsize", 8)
+
+        if itemsize <= 4:
+            return "int"
+
+        return "bigint"
+
+    if is_float_dtype(dtype):
+        itemsize = getattr(dtype, "itemsize", 8)
+
+        if itemsize <= 4:
+            return "float"
+
+        return "double"
+
+    return "string"
+
+
+def _append_missing_features(
+    frame: pd.DataFrame,
+    group: Any,
+) -> bool:
+    """
+    Append new dataframe columns to an existing Feature Group.
+
+    Returns True when the Hopsworks schema was modified.
+    """
+
+    existing = {
+        str(feature.name).lower()
+        for feature in _group_features(group)
+    }
+
+    missing = [
+        column
+        for column in frame.columns
+        if str(column).lower() not in existing
+    ]
+
+    if not missing:
+        return False
+
+    from hsfs.feature import Feature
+
+    new_features = [
+        Feature(
+            name=str(column),
+            type=_infer_hopsworks_type(frame[column]),
+        )
+        for column in missing
+    ]
+
+    LOGGER.info(
+        "Appending %d new features to Hopsworks Feature Group %s: %s",
+        len(new_features),
+        getattr(group, "name", "unknown"),
+        ", ".join(str(column) for column in missing),
+    )
+
+    group.append_features(new_features)
+
+    return True
+
+
 def _align_to_feature_group_schema(
     frame: pd.DataFrame,
     group: Any,
 ) -> pd.DataFrame:
-    """Align pandas dtypes with an existing Hopsworks Feature Group schema."""
+    """Align pandas dtypes exactly with an existing Hopsworks schema."""
 
     result = frame.copy()
 
-    features = getattr(group, "features", None) or []
-    if not features:
-        return result
-
     expected = {
         str(feature.name).lower(): str(feature.type).lower()
-        for feature in features
+        for feature in _group_features(group)
     }
 
     actual_columns = {
@@ -88,7 +176,7 @@ def _align_to_feature_group_schema(
         if column is None:
             continue
 
-        # Hopsworks BIGINT -> pandas nullable Int64
+        # Numeric integer types
         if hopsworks_type in {
             "bigint",
             "int",
@@ -103,7 +191,6 @@ def _align_to_feature_group_schema(
                 errors="coerce",
             )
 
-            # Do not silently turn invalid strings/objects into NA.
             invalid = original.notna() & numeric.isna()
 
             if invalid.any():
@@ -115,13 +202,11 @@ def _align_to_feature_group_schema(
                 )
 
                 raise ValueError(
-                    f"Column {column!r} must match Hopsworks "
-                    f"type {hopsworks_type!r}, but contains "
+                    f"{column!r} must match Hopsworks "
+                    f"{hopsworks_type!r}, but contains "
                     f"non-numeric values: {examples}"
                 )
 
-            # Prevent silent truncation if a supposedly integer feature
-            # suddenly contains real fractional values.
             non_null = numeric.dropna()
 
             if not non_null.empty:
@@ -137,26 +222,41 @@ def _align_to_feature_group_schema(
                     )
 
                     raise ValueError(
-                        f"Column {column!r} is defined as "
-                        f"{hopsworks_type!r} in Hopsworks but now "
-                        f"contains fractional values: {examples}"
+                        f"{column!r} is defined as "
+                        f"{hopsworks_type!r} but contains "
+                        f"fractional values: {examples}"
                     )
 
-            result[column] = numeric.round().astype("Int64")
+            numeric = numeric.round()
 
-        elif hopsworks_type in {
-            "double",
-            "float",
-        }:
+            # IMPORTANT:
+            # Pandas Int32 -> Hopsworks INT
+            # Pandas Int64 -> Hopsworks BIGINT
+            if hopsworks_type == "bigint":
+                result[column] = numeric.astype("Int64")
+
+            elif hopsworks_type in {"int", "integer"}:
+                result[column] = numeric.astype("Int32")
+
+            elif hopsworks_type == "smallint":
+                result[column] = numeric.astype("Int16")
+
+            elif hopsworks_type == "tinyint":
+                result[column] = numeric.astype("Int8")
+
+        elif hopsworks_type == "double":
             result[column] = pd.to_numeric(
                 result[column],
                 errors="coerce",
             ).astype("float64")
 
-        elif hopsworks_type in {
-            "boolean",
-            "bool",
-        }:
+        elif hopsworks_type == "float":
+            result[column] = pd.to_numeric(
+                result[column],
+                errors="coerce",
+            ).astype("float32")
+
+        elif hopsworks_type in {"boolean", "bool"}:
             result[column] = result[column].astype("boolean")
 
         elif hopsworks_type in {
@@ -167,11 +267,15 @@ def _align_to_feature_group_schema(
             result[column] = result[column].astype("string")
 
         elif "timestamp" in hopsworks_type:
-            result[column] = pd.to_datetime(
-                result[column],
-                utc=True,
-                errors="coerce",
-            ).dt.tz_localize(None)
+            result[column] = (
+                pd.to_datetime(
+                    result[column],
+                    utc=True,
+                    errors="coerce",
+                )
+                .dt.tz_convert("UTC")
+                .dt.tz_localize(None)
+            )
 
     return result
 
@@ -215,14 +319,29 @@ class HopsworksAdapter:
 
         group = self.feature_store.get_or_create_feature_group(**kwargs)
 
-        # Existing Feature Groups have a fixed schema.
-        # Align pandas dtypes before every upsert.
-        if getattr(group, "id", None) is not None:
-            prepared = _align_to_feature_group_schema(
-                prepared,
-                group,
+        # ------------------------------------------------------------------
+        # Schema evolution
+        # ------------------------------------------------------------------
+        # Feature engineering can add new non-breaking columns over time.
+        # Hopsworks supports appending new features to an existing FG.
+        schema_changed = _append_missing_features(
+            prepared,
+            group,
+        )
+
+        # Refresh metadata after appending features so we align against
+        # the newest schema returned by Hopsworks.
+        if schema_changed:
+            group = self.feature_store.get_feature_group(
+                _safe_name(name),
+                version=self.version,
             )
-    
+
+        # Always enforce the persisted Hopsworks data types before insertion.
+        prepared = _align_to_feature_group_schema(
+            prepared,
+            group,
+        )
 
         # Existing groups may still have statistics enabled from their
         # original creation, so persistently disable them.
@@ -236,11 +355,16 @@ class HopsworksAdapter:
             group.update_statistics_config()
 
         try:
-            group.insert(prepared, wait=True)
+            group.insert(
+                prepared,
+                wait=True,
+            )
         except TypeError:
             group.insert(
                 prepared,
-                write_options={"wait_for_job": True},
+                write_options={
+                    "wait_for_job": True,
+                },
             )
 
         return (
