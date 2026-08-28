@@ -60,6 +60,121 @@ def _prepare(frame: pd.DataFrame) -> pd.DataFrame:
             )
     return result
 
+def _align_to_feature_group_schema(
+    frame: pd.DataFrame,
+    group: Any,
+) -> pd.DataFrame:
+    """Align pandas dtypes with an existing Hopsworks Feature Group schema."""
+
+    result = frame.copy()
+
+    features = getattr(group, "features", None) or []
+    if not features:
+        return result
+
+    expected = {
+        str(feature.name).lower(): str(feature.type).lower()
+        for feature in features
+    }
+
+    actual_columns = {
+        str(column).lower(): column
+        for column in result.columns
+    }
+
+    for feature_name, hopsworks_type in expected.items():
+        column = actual_columns.get(feature_name)
+
+        if column is None:
+            continue
+
+        # Hopsworks BIGINT -> pandas nullable Int64
+        if hopsworks_type in {
+            "bigint",
+            "int",
+            "integer",
+            "smallint",
+            "tinyint",
+        }:
+            original = result[column]
+
+            numeric = pd.to_numeric(
+                original,
+                errors="coerce",
+            )
+
+            # Do not silently turn invalid strings/objects into NA.
+            invalid = original.notna() & numeric.isna()
+
+            if invalid.any():
+                examples = (
+                    original.loc[invalid]
+                    .astype(str)
+                    .head(5)
+                    .tolist()
+                )
+
+                raise ValueError(
+                    f"Column {column!r} must match Hopsworks "
+                    f"type {hopsworks_type!r}, but contains "
+                    f"non-numeric values: {examples}"
+                )
+
+            # Prevent silent truncation if a supposedly integer feature
+            # suddenly contains real fractional values.
+            non_null = numeric.dropna()
+
+            if not non_null.empty:
+                fractional = (
+                    non_null - non_null.round()
+                ).abs() > 1e-9
+
+                if fractional.any():
+                    examples = (
+                        non_null.loc[fractional]
+                        .head(5)
+                        .tolist()
+                    )
+
+                    raise ValueError(
+                        f"Column {column!r} is defined as "
+                        f"{hopsworks_type!r} in Hopsworks but now "
+                        f"contains fractional values: {examples}"
+                    )
+
+            result[column] = numeric.round().astype("Int64")
+
+        elif hopsworks_type in {
+            "double",
+            "float",
+        }:
+            result[column] = pd.to_numeric(
+                result[column],
+                errors="coerce",
+            ).astype("float64")
+
+        elif hopsworks_type in {
+            "boolean",
+            "bool",
+        }:
+            result[column] = result[column].astype("boolean")
+
+        elif hopsworks_type in {
+            "string",
+            "varchar",
+            "char",
+        }:
+            result[column] = result[column].astype("string")
+
+        elif "timestamp" in hopsworks_type:
+            result[column] = pd.to_datetime(
+                result[column],
+                utc=True,
+                errors="coerce",
+            ).dt.tz_localize(None)
+
+    return result
+
 
 class HopsworksAdapter:
     def __init__(self, settings: Settings) -> None:
@@ -99,6 +214,15 @@ class HopsworksAdapter:
             kwargs["event_time"] = event_time
 
         group = self.feature_store.get_or_create_feature_group(**kwargs)
+
+        # Existing Feature Groups have a fixed schema.
+        # Align pandas dtypes before every upsert.
+        if getattr(group, "id", None) is not None:
+            prepared = _align_to_feature_group_schema(
+                prepared,
+                group,
+            )
+    
 
         # Existing groups may still have statistics enabled from their
         # original creation, so persistently disable them.
