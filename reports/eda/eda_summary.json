@@ -1,0 +1,35 @@
+{
+  "hourly_rows": 175200,
+  "daily_rows": 7310,
+  "cities": [
+    "abbottabad",
+    "faisalabad",
+    "hyderabad",
+    "islamabad",
+    "karachi",
+    "lahore",
+    "multan",
+    "peshawar",
+    "quetta",
+    "sialkot"
+  ],
+  "start_timestamp": "2024-07-25 00:00:00+00:00",
+  "end_timestamp": "2026-07-24 23:00:00+00:00",
+  "overall_mean_aqi": 119.80950638394893,
+  "overall_median_aqi": 109.66666666666667,
+  "overall_max_aqi": 486.0833333333333,
+  "unhealthy_or_worse_percent": 23.556771545827633,
+  "highest_mean_aqi_city": "faisalabad",
+  "highest_mean_aqi_month": "2026-01",
+  "highest_mean_aqi_season": "Winter Smog",
+  "strongest_positive_aqi_correlation": {
+    "feature": "pm2_5",
+    "correlation": 0.7702233314460889
+  },
+  "strongest_negative_aqi_correlation": {
+    "feature": "wind_speed_10m",
+    "correlation": -0.26666544405539033
+  },
+  "highest_missing_feature": "apparent_temperature",
+  "highest_missing_percent": 0.0
+}

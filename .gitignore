@@ -45,3 +45,10 @@ pearl-aqi-v*/
 # Temporary files
 *.tmp
 *.bak
+
+# Keep generated reports ignored by default,
+# but commit EDA artifacts for the project submission.
+!reports/
+reports/*
+!reports/eda/
+!reports/eda/**
