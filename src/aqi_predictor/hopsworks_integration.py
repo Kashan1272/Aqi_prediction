@@ -79,22 +79,50 @@ class HopsworksAdapter:
     ) -> str:
         if frame.empty:
             raise ValueError(f"Cannot upload empty feature group {name}")
+
         prepared = _prepare(frame)
+
         kwargs: dict[str, Any] = {
             "name": _safe_name(name),
             "version": self.version,
             "description": f"Pearls AQI Predictor v6: {name}",
-            "primary_key": [column for column in primary_key if column in prepared],
+            "primary_key": [
+                column for column in primary_key
+                if column in prepared
+            ],
             "online_enabled": self.settings.hopsworks_online_enabled,
+            "time_travel_format": "HUDI",
+            "statistics_config": False,
         }
+
         if event_time and event_time in prepared:
             kwargs["event_time"] = event_time
+
         group = self.feature_store.get_or_create_feature_group(**kwargs)
+
+        # Existing groups may still have statistics enabled from their
+        # original creation, so persistently disable them.
+        if getattr(group, "id", None) is not None:
+            group.statistics_config = {
+                "enabled": False,
+                "histograms": False,
+                "correlations": False,
+                "exact_uniqueness": False,
+            }
+            group.update_statistics_config()
+
         try:
             group.insert(prepared, wait=True)
         except TypeError:
-            group.insert(prepared, write_options={"wait_for_job": True})
-        return f"hopsworks://{self.project.name}/{_safe_name(name)}/v{self.version}"
+            group.insert(
+                prepared,
+                write_options={"wait_for_job": True},
+            )
+
+        return (
+            f"hopsworks://{self.project.name}/"
+            f"{_safe_name(name)}/v{self.version}"
+        )
 
 
     def read_group(self, name: str) -> pd.DataFrame:
@@ -134,9 +162,9 @@ class HopsworksAdapter:
         saved = model.save(
             str(model_directory),
             upload_configuration={
-                "chunk_size": 10,
-                "simultaneous_uploads": 2,
-                "max_chunk_retries": 3,
+                "chunk_size": 10 * 1024 * 1024,
+                "simultaneous_uploads": 1,
+                "max_chunk_retries": 5,
             },
         )
         handle = saved if saved is not None else model

@@ -1,3 +1,5 @@
 # Hopsworks is intentionally separate because its dependency tree is large.
 # Python 3.11 is recommended for the Hopsworks environment.
-hopsworks>=4.2,<5
+# Hopsworks dependencies
+hopsworks[python]==5.0.6
+protobuf>=4.25.4,<5
