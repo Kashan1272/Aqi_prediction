@@ -1,0 +1,285 @@
+{
+  "production_version": "20260729T212359325910Z",
+  "model_name": "pearls_aqi_daily_ensemble",
+  "method": "SHAP",
+  "explained_targets": [
+    "day1_mean",
+    "day3_mean"
+  ],
+  "production_metrics": {
+    "mae": 12.261773523559254,
+    "rmse": 17.31776661145011,
+    "r2": 0.7473395222253306,
+    "bias": -0.024493762566776482,
+    "sample_count": 2544
+  },
+  "reports": {
+    "day1_mean": {
+      "method": "shap",
+      "features": [
+        {
+          "feature": "pm2_5__mean",
+          "importance": 25.78225974193683
+        },
+        {
+          "feature": "pm2_5__max",
+          "importance": 3.617966768547279
+        },
+        {
+          "feature": "aqi_peak_excess",
+          "importance": 1.7772921684936702
+        },
+        {
+          "feature": "future_wind_speed_10m__mean",
+          "importance": 1.0167733677079982
+        },
+        {
+          "feature": "pm10__max",
+          "importance": 0.817725390037129
+        },
+        {
+          "feature": "us_aqi__median",
+          "importance": 0.7979894231716838
+        },
+        {
+          "feature": "us_aqi__max",
+          "importance": 0.7332601882440266
+        },
+        {
+          "feature": "future_ventilation_proxy",
+          "importance": 0.7047443207144994
+        },
+        {
+          "feature": "aqi_mean_change_1d",
+          "importance": 0.6451764898841961
+        },
+        {
+          "feature": "ozone__max",
+          "importance": 0.6165023560764478
+        },
+        {
+          "feature": "future_wind_direction_10m__min",
+          "importance": 0.6154647220903711
+        },
+        {
+          "feature": "pm10__mean",
+          "importance": 0.5678811973728587
+        },
+        {
+          "feature": "us_aqi__median__trend7",
+          "importance": 0.4982735233215152
+        },
+        {
+          "feature": "future_temperature_2m__max",
+          "importance": 0.4928839463953755
+        },
+        {
+          "feature": "us_aqi__std",
+          "importance": 0.4794652986264077
+        },
+        {
+          "feature": "future_wind_speed_10m__max",
+          "importance": 0.4554311826737591
+        },
+        {
+          "feature": "sulphur_dioxide__mean",
+          "importance": 0.4467416464221813
+        },
+        {
+          "feature": "pm10__mean__trend7",
+          "importance": 0.417013216181035
+        },
+        {
+          "feature": "wind_speed_10m__max",
+          "importance": 0.40141780453698905
+        },
+        {
+          "feature": "us_aqi__median__trend3",
+          "importance": 0.39237353671460745
+        },
+        {
+          "feature": "us_aqi__median__trend14",
+          "importance": 0.3752044653925161
+        },
+        {
+          "feature": "pm2_5__mean__trend3",
+          "importance": 0.36895624848847225
+        },
+        {
+          "feature": "ozone__mean__trend7",
+          "importance": 0.3107655479111547
+        },
+        {
+          "feature": "future_temperature_2m__mean",
+          "importance": 0.301888038374859
+        },
+        {
+          "feature": "us_aqi__max__roll14_q25",
+          "importance": 0.29478268811212505
+        },
+        {
+          "feature": "future_wind_v",
+          "importance": 0.2925412750227288
+        },
+        {
+          "feature": "nitrogen_dioxide__max__lag1",
+          "importance": 0.2863171344013693
+        },
+        {
+          "feature": "future_rain_washout",
+          "importance": 0.2589760754168154
+        },
+        {
+          "feature": "pm2_5__max__lag1",
+          "importance": 0.24474830146262264
+        },
+        {
+          "feature": "pm2_5__max__trend3",
+          "importance": 0.23810492908673198
+        }
+      ],
+      "model_key": "day1_mean",
+      "horizon_day": 1,
+      "target": "daily mean AQI",
+      "explained_component": "hist_gradient",
+      "ensemble_weights": {
+        "hist_gradient": 0.6082586322464902,
+        "extra_trees": 0.3917413677535098
+      }
+    },
+    "day3_mean": {
+      "method": "shap",
+      "features": [
+        {
+          "feature": "pm2_5__mean__ewm7",
+          "importance": 5.4018814845389755
+        },
+        {
+          "feature": "us_aqi__mean__ewm7",
+          "importance": 4.156346614555163
+        },
+        {
+          "feature": "pm2_5__mean",
+          "importance": 3.994099383361175
+        },
+        {
+          "feature": "future_wind_speed_10m__mean",
+          "importance": 2.6768572183641157
+        },
+        {
+          "feature": "aqi_city_month_climatology",
+          "importance": 2.391775472352356
+        },
+        {
+          "feature": "future_wind_direction_10m__min",
+          "importance": 1.8522017066721044
+        },
+        {
+          "feature": "target_doy_cos",
+          "importance": 1.704629969497214
+        },
+        {
+          "feature": "pm2_5__mean__roll14_mean",
+          "importance": 1.6722568325299696
+        },
+        {
+          "feature": "future_wind_v",
+          "importance": 1.423958002616971
+        },
+        {
+          "feature": "future_temperature_2m__max",
+          "importance": 1.419453753725376
+        },
+        {
+          "feature": "pm10__max__roll21_mean",
+          "importance": 1.361869084400248
+        },
+        {
+          "feature": "us_aqi__mean__roll21_mean",
+          "importance": 1.3070099674934808
+        },
+        {
+          "feature": "pm2_5__max",
+          "importance": 1.0449975261047182
+        },
+        {
+          "feature": "future_temperature_2m__mean",
+          "importance": 0.9395832871918607
+        },
+        {
+          "feature": "us_aqi__max__roll21_mean",
+          "importance": 0.9301923180061685
+        },
+        {
+          "feature": "pm2_5__max__roll7_mean",
+          "importance": 0.9187391650352176
+        },
+        {
+          "feature": "us_aqi__max__roll7_q25",
+          "importance": 0.8736791376872601
+        },
+        {
+          "feature": "us_aqi__max__roll14_q25",
+          "importance": 0.8510003247261235
+        },
+        {
+          "feature": "us_aqi__max__ewm7",
+          "importance": 0.8371585873275155
+        },
+        {
+          "feature": "future_ventilation_proxy",
+          "importance": 0.822883492209402
+        },
+        {
+          "feature": "pm2_5__mean__roll14_q25",
+          "importance": 0.7435657510347358
+        },
+        {
+          "feature": "ozone__mean__trend7",
+          "importance": 0.7426047801101703
+        },
+        {
+          "feature": "aqi_high_days_14",
+          "importance": 0.6349765883340976
+        },
+        {
+          "feature": "pm2_5__mean__roll3_mean",
+          "importance": 0.6249133810411802
+        },
+        {
+          "feature": "us_aqi__mean__roll14_mean",
+          "importance": 0.6067680458314801
+        },
+        {
+          "feature": "province_Punjab",
+          "importance": 0.5486117856280563
+        },
+        {
+          "feature": "target_doy_sin",
+          "importance": 0.5385067037032802
+        },
+        {
+          "feature": "future_wind_speed_10m__min",
+          "importance": 0.5320876256473159
+        },
+        {
+          "feature": "cloud_cover__mean",
+          "importance": 0.49396483458960566
+        },
+        {
+          "feature": "carbon_monoxide__mean__trend3",
+          "importance": 0.4596977537947449
+        }
+      ],
+      "model_key": "day3_mean",
+      "horizon_day": 3,
+      "target": "daily mean AQI",
+      "explained_component": "hist_gradient",
+      "ensemble_weights": {
+        "hist_gradient": 0.6892229215653111,
+        "extra_trees": 0.18851476491489821,
+        "seasonal_baseline": 0.12226231351979074
+      }
+    }
+  }
+}

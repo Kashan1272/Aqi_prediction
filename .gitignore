@@ -56,3 +56,7 @@ reports/*
 # Commit deep-learning experiment reports
 !reports/deep_learning/
 !reports/deep_learning/**
+
+# Commit SHAP explainability reports
+!reports/explainability/
+!reports/explainability/**
