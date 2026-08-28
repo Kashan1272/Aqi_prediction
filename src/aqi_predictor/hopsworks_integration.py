@@ -111,14 +111,38 @@ def _append_missing_features(
     group: Any,
 ) -> bool:
     """
-    Append new dataframe columns to an existing Feature Group.
+    Append newly-added columns only to an already registered
+    Hopsworks Feature Group.
 
-    Returns True when the Hopsworks schema was modified.
+    Brand-new Feature Groups must get their initial schema from
+    the first insert instead of append_features().
     """
+
+    # A new Feature Group has not been persisted yet.
+    # Let group.insert() create its schema and primary key.
+    if getattr(group, "id", None) is None:
+        LOGGER.info(
+            "Feature Group %s is new; initial schema will be "
+            "created by the first insert.",
+            getattr(group, "name", "unknown"),
+        )
+        return False
+
+    features = _group_features(group)
+
+    # Defensive fallback: do not run schema evolution against an
+    # uninitialized Feature Group.
+    if not features:
+        LOGGER.info(
+            "Feature Group %s has no persisted schema; "
+            "skipping append_features().",
+            getattr(group, "name", "unknown"),
+        )
+        return False
 
     existing = {
         str(feature.name).lower()
-        for feature in _group_features(group)
+        for feature in features
     }
 
     missing = [
