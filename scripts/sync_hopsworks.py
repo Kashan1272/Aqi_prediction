@@ -221,9 +221,26 @@ def main() -> None:
                     "generated_at": payload.get("generated_at"),
                 })
         if prediction_rows:
+            predictions_frame = pd.DataFrame(prediction_rows)
+
+            # Hopsworks event_time cannot be a string.
+            predictions_frame["date"] = pd.to_datetime(
+                predictions_frame["date"],
+                utc=True,
+                errors="raise",
+            ).dt.tz_localize(None)
+
+            # Keep generation time as a real timestamp as well.
+            if "generated_at" in predictions_frame.columns:
+                predictions_frame["generated_at"] = pd.to_datetime(
+                    predictions_frame["generated_at"],
+                    utc=True,
+                    errors="coerce",
+                ).dt.tz_localize(None)
+
             output["predictions"] = adapter.upsert(
                 "aqi_daily_predictions_v69",
-                pd.DataFrame(prediction_rows),
+                predictions_frame,
                 primary_key=["prediction_id"],
                 event_time="date",
             )

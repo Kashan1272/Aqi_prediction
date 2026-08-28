@@ -312,89 +312,145 @@ class HopsworksAdapter:
         self.model_registry = self.project.get_model_registry()
         self.version = settings.hopsworks_feature_group_version
 
-    def upsert(
-        self,
-        name: str,
-        frame: pd.DataFrame,
-        *,
-        primary_key: list[str],
-        event_time: str | None = None,
-    ) -> str:
-        if frame.empty:
-            raise ValueError(f"Cannot upload empty feature group {name}")
+def upsert(
+    self,
+    name: str,
+    frame: pd.DataFrame,
+    *,
+    primary_key: list[str],
+    event_time: str | None = None,
+) -> str:
+    if frame.empty:
+        raise ValueError(
+            f"Cannot upload empty feature group {name}"
+        )
 
-        prepared = _prepare(frame)
+    prepared = _prepare(frame)
 
-        kwargs: dict[str, Any] = {
-            "name": _safe_name(name),
-            "version": self.version,
-            "description": f"Pearls AQI Predictor v6: {name}",
-            "primary_key": [
-                column for column in primary_key
-                if column in prepared
-            ],
-            "online_enabled": self.settings.hopsworks_online_enabled,
-            "time_travel_format": "HUDI",
-            "statistics_config": False,
+    # --------------------------------------------------------------
+    # Normalize event-time column
+    # --------------------------------------------------------------
+    # Hopsworks event_time must be TIMESTAMP, DATE, or BIGINT.
+    # Strings such as "2026-08-28" are not accepted.
+    if event_time and event_time in prepared.columns:
+        prepared[event_time] = (
+            pd.to_datetime(
+                prepared[event_time],
+                utc=True,
+                errors="raise",
+            )
+            .dt.tz_localize(None)
+        )
+
+    kwargs: dict[str, Any] = {
+        "name": _safe_name(name),
+        "version": self.version,
+        "description": f"Pearls AQI Predictor v6: {name}",
+        "primary_key": [
+            column
+            for column in primary_key
+            if column in prepared.columns
+        ],
+        "online_enabled": (
+            self.settings.hopsworks_online_enabled
+        ),
+        "time_travel_format": "HUDI",
+        "statistics_config": False,
+    }
+
+    if event_time and event_time in prepared.columns:
+        kwargs["event_time"] = event_time
+
+    # --------------------------------------------------------------
+    # Get existing Feature Group or prepare a new one
+    # --------------------------------------------------------------
+    group = self.feature_store.get_or_create_feature_group(
+        **kwargs
+    )
+
+    # --------------------------------------------------------------
+    # Schema evolution
+    # --------------------------------------------------------------
+    # Existing Feature Groups can gain new columns.
+    #
+    # For a brand-new Feature Group, _append_missing_features()
+    # must return False so that the first insert creates the
+    # initial schema and primary key.
+    schema_changed = _append_missing_features(
+        prepared,
+        group,
+    )
+
+    # Refresh metadata after appending features.
+    if schema_changed:
+        group = self.feature_store.get_feature_group(
+            _safe_name(name),
+            version=self.version,
+        )
+
+    # --------------------------------------------------------------
+    # Match persisted Hopsworks datatypes
+    # --------------------------------------------------------------
+    # Existing Feature Groups may require pandas Int32 vs Int64,
+    # float32 vs float64, timestamps, etc.
+    prepared = _align_to_feature_group_schema(
+        prepared,
+        group,
+    )
+
+    # --------------------------------------------------------------
+    # Re-normalize event_time defensively
+    # --------------------------------------------------------------
+    # Schema alignment or dataframe operations should never turn
+    # event_time back into a string.
+    if event_time and event_time in prepared.columns:
+        prepared[event_time] = (
+            pd.to_datetime(
+                prepared[event_time],
+                utc=True,
+                errors="raise",
+            )
+            .dt.tz_localize(None)
+        )
+
+    # --------------------------------------------------------------
+    # Disable statistics
+    # --------------------------------------------------------------
+    # Existing Feature Groups may still have statistics enabled
+    # from their original creation.
+    if getattr(group, "id", None) is not None:
+        group.statistics_config = {
+            "enabled": False,
+            "histograms": False,
+            "correlations": False,
+            "exact_uniqueness": False,
         }
 
-        if event_time and event_time in prepared:
-            kwargs["event_time"] = event_time
+        group.update_statistics_config()
 
-        group = self.feature_store.get_or_create_feature_group(**kwargs)
-
-        # ------------------------------------------------------------------
-        # Schema evolution
-        # ------------------------------------------------------------------
-        # Feature engineering can add new non-breaking columns over time.
-        # Hopsworks supports appending new features to an existing FG.
-        schema_changed = _append_missing_features(
+    # --------------------------------------------------------------
+    # Insert / materialize
+    # --------------------------------------------------------------
+    try:
+        group.insert(
             prepared,
-            group,
+            wait=True,
         )
 
-        # Refresh metadata after appending features so we align against
-        # the newest schema returned by Hopsworks.
-        if schema_changed:
-            group = self.feature_store.get_feature_group(
-                _safe_name(name),
-                version=self.version,
-            )
-
-        # Always enforce the persisted Hopsworks data types before insertion.
-        prepared = _align_to_feature_group_schema(
+    except TypeError:
+        # Compatibility fallback for HSFS versions using
+        # write_options instead of wait=.
+        group.insert(
             prepared,
-            group,
+            write_options={
+                "wait_for_job": True,
+            },
         )
 
-        # Existing groups may still have statistics enabled from their
-        # original creation, so persistently disable them.
-        if getattr(group, "id", None) is not None:
-            group.statistics_config = {
-                "enabled": False,
-                "histograms": False,
-                "correlations": False,
-                "exact_uniqueness": False,
-            }
-            group.update_statistics_config()
-
-        try:
-            group.insert(
-                prepared,
-                wait=True,
-            )
-        except TypeError:
-            group.insert(
-                prepared,
-                write_options={
-                    "wait_for_job": True,
-                },
-            )
-
-        return (
-            f"hopsworks://{self.project.name}/"
-            f"{_safe_name(name)}/v{self.version}"
-        )
+    return (
+        f"hopsworks://{self.project.name}/"
+        f"{_safe_name(name)}/v{self.version}"
+    )
 
 
     def read_group(self, name: str) -> pd.DataFrame:
