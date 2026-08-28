@@ -2,8 +2,6 @@ name: Daily training and registration
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "25 3 * * *"
 
 jobs:
   train:
@@ -14,7 +12,7 @@ jobs:
       HOPSWORKS_HOST: ${{ secrets.HOPSWORKS_HOST }}
       HOPSWORKS_PROJECT: ${{ secrets.HOPSWORKS_PROJECT }}
       HOPSWORKS_API_KEY: ${{ secrets.HOPSWORKS_API_KEY }}
-      HOPSWORKS_FEATURE_GROUP_VERSION: "6"
+      HOPSWORKS_FEATURE_GROUP_VERSION: "9"
       HOPSWORKS_SYNC_MODELS: "true"
       MODEL_N_JOBS: "2"
     steps:
