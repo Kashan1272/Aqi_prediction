@@ -87,48 +87,147 @@ class LocalStore:
 
     def read_provider_snapshots(self, city: str) -> pd.DataFrame:
         path = self.provider_snapshot_path(city)
+
         if not path.exists():
             return pd.DataFrame()
+
         if path.suffix == ".parquet":
             frame = pd.read_parquet(path)
         else:
-            frame = pd.read_csv(path, compression="gzip", low_memory=False)
-        for column in ("issue_date", "target_date", "collected_at"):
-            if column in frame:
-                frame[column] = pd.to_datetime(frame[column], utc=True, errors="coerce")
-                if column in {"issue_date", "target_date"}:
-                    frame[column] = frame[column].dt.tz_localize(None).dt.normalize()
-        return frame.sort_values(["issue_date", "horizon_day"]).reset_index(drop=True)
+            frame = pd.read_csv(
+                path,
+                compression="gzip",
+                low_memory=False,
+            )
 
-    def write_provider_snapshots(self, city: str, frame: pd.DataFrame) -> Path:
-        if frame.empty:
-            raise ValueError(f"Cannot save an empty provider snapshot for {city}")
-        path = self.provider_snapshot_path(city)
-        result = frame.copy()
         for column in ("issue_date", "target_date"):
-            result[column] = pd.to_datetime(result[column], errors="coerce").dt.normalize()
-        result["collected_at"] = pd.to_datetime(
-            result.get("collected_at"), utc=True, errors="coerce"
-        )
-        result = result.dropna(subset=["issue_date", "horizon_day"])
-        if path.exists():
-            old = self.read_provider_snapshots(city)
-            result = pd.concat([old, result], ignore_index=True, copy=False, sort=False)
-        result = (
-            result.sort_values("collected_at")
-            .drop_duplicates(["issue_date", "horizon_day"], keep="last")
+            if column in frame.columns:
+                frame[column] = (
+                    pd.to_datetime(
+                        frame[column],
+                        utc=True,
+                        errors="coerce",
+                    )
+                    .dt.tz_localize(None)
+                    .dt.normalize()
+                )
+
+        if "collected_at" in frame.columns:
+            frame["collected_at"] = pd.to_datetime(
+                frame["collected_at"],
+                utc=True,
+                errors="coerce",
+            )
+
+        return (
+            frame
             .sort_values(["issue_date", "horizon_day"])
             .reset_index(drop=True)
         )
+
+    def write_provider_snapshots(
+        self,
+        city: str,
+        frame: pd.DataFrame,
+    ) -> Path:
+        if frame.empty:
+            raise ValueError(
+                f"Cannot save an empty provider snapshot for {city}"
+            )
+
+        path = self.provider_snapshot_path(city)
+        result = frame.copy()
+
+        for column in ("issue_date", "target_date"):
+            if column in result.columns:
+                result[column] = (
+                    pd.to_datetime(
+                        result[column],
+                        utc=True,
+                        errors="coerce",
+                    )
+                    .dt.tz_localize(None)
+                    .dt.normalize()
+                )
+
+        if "collected_at" in result.columns:
+            result["collected_at"] = pd.to_datetime(
+                result["collected_at"],
+                utc=True,
+                errors="coerce",
+            )
+
+        result = result.dropna(
+            subset=["issue_date", "horizon_day"]
+        )
+
+        if path.exists():
+            old = self.read_provider_snapshots(city)
+
+            result = pd.concat(
+                [old, result],
+                ignore_index=True,
+                copy=False,
+                sort=False,
+            )
+
+            # Defensive normalization after concat too.
+            for column in ("issue_date", "target_date"):
+                if column in result.columns:
+                    result[column] = (
+                        pd.to_datetime(
+                            result[column],
+                            utc=True,
+                            errors="coerce",
+                        )
+                        .dt.tz_localize(None)
+                        .dt.normalize()
+                    )
+
+            if "collected_at" in result.columns:
+                result["collected_at"] = pd.to_datetime(
+                    result["collected_at"],
+                    utc=True,
+                    errors="coerce",
+                )
+
+        result = (
+            result
+            .sort_values("collected_at")
+            .drop_duplicates(
+                ["issue_date", "horizon_day"],
+                keep="last",
+            )
+            .sort_values(
+                ["issue_date", "horizon_day"]
+            )
+            .reset_index(drop=True)
+        )
+
         try:
             self._atomic_parquet(path, result)
-            csv_path = self.settings.provider_snapshots_dir / f"city={city}.csv.gz"
+
+            csv_path = (
+                self.settings.provider_snapshots_dir
+                / f"city={city}.csv.gz"
+            )
             csv_path.unlink(missing_ok=True)
+
             return path
-        except (ImportError, ModuleNotFoundError, ValueError):
-            csv_path = self.settings.provider_snapshots_dir / f"city={city}.csv.gz"
+
+        except (
+            ImportError,
+            ModuleNotFoundError,
+            ValueError,
+        ):
+            csv_path = (
+                self.settings.provider_snapshots_dir
+                / f"city={city}.csv.gz"
+            )
+
             self._atomic_csv(csv_path, result)
             path.unlink(missing_ok=True)
+
             return csv_path
 
     def save_prediction(self, city: str, payload: dict[str, Any]) -> Path:
