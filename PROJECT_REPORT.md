@@ -14,7 +14,7 @@
 **Production project version:** `6.8.0`  
 **Feature Group version:** `9`  
 **Repository:** https://github.com/Kashan1272/Aqi_prediction  
-**Live application:** `https://aqiprediction-ai.streamlit.app/`
+**Live application:** https://aqiprediction-ai.streamlit.app/
 
 ---
 
@@ -1143,6 +1143,6 @@ https://github.com/Kashan1272/Aqi_prediction
 
 **Live Streamlit application**
 
-`REPLACE_WITH_YOUR_STREAMLIT_APP_URL`
+https://aqiprediction-ai.streamlit.app/
 
 Before final submission, replace the placeholder above with the deployed Streamlit Community Cloud URL.

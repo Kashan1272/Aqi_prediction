@@ -2,7 +2,7 @@
 
 Production-ready **3-day Air Quality Index (AQI) forecasting system for major cities in Pakistan**, built with Hopsworks, Scikit-learn, PyTorch, SHAP, and Streamlit.
 
-> **Live Dashboard:** `https://aqiprediction-ai.streamlit.app/`  
+> **Live Dashboard:** https://aqiprediction-ai.streamlit.app/  
 > **Full Technical Report:** [PROJECT_REPORT.md](PROJECT_REPORT.md)
 
 ![Pearls AQI Dashboard](reports/final/evidence/01_streamlit_dashboard_top.png)
