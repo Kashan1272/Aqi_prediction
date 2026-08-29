@@ -18,9 +18,75 @@ from aqi_predictor.city_selection import load_selected_city_keys
 from aqi_predictor.inference import forecast_city
 from aqi_predictor.registry import LocalModelRegistry
 from aqi_predictor.storage import LocalStore
+from aqi_predictor.aqi import category, health_message
 
 settings = get_settings()
 store = LocalStore(settings)
+
+def render_aqi_alert(daily_forecast: list[dict]) -> None:
+    if not daily_forecast:
+        st.info("AQI alert status is unavailable.")
+        return
+
+    valid_days = []
+
+    for day in daily_forecast:
+        values = []
+
+        for key in ("aqi_mean", "aqi_max"):
+            try:
+                value = float(day.get(key))
+            except (TypeError, ValueError):
+                continue
+
+            if pd.notna(value):
+                values.append(value)
+
+        if values:
+            valid_days.append((day, max(values)))
+
+    if not valid_days:
+        st.info("No valid AQI values are available for alerts.")
+        return
+
+    worst_day, worst_aqi = max(
+        valid_days,
+        key=lambda item: item[1],
+    )
+
+    label = category(worst_aqi)
+    advice = health_message(worst_aqi)
+
+    horizon = worst_day.get("horizon_day", "—")
+    date = worst_day.get("date", "upcoming forecast")
+
+    message = (
+        f"Day {horizon} · {date} — "
+        f"forecast peak {worst_aqi:.0f} AQI "
+        f"({label}). {advice}"
+    )
+
+    if worst_aqi >= 301:
+        st.error("🚨 HAZARDOUS AIR QUALITY ALERT\n\n" + message)
+
+    elif worst_aqi >= 201:
+        st.error("🔴 VERY UNHEALTHY AIR QUALITY ALERT\n\n" + message)
+
+    elif worst_aqi >= 151:
+        st.error("⚠️ UNHEALTHY AIR QUALITY ALERT\n\n" + message)
+
+    elif worst_aqi >= 101:
+        st.warning(
+            "⚠️ AIR QUALITY ALERT FOR SENSITIVE GROUPS\n\n"
+            + message
+        )
+
+    else:
+        st.success(
+            "✅ No unhealthy AQI alert in the current "
+            "three-day forecast.\n\n"
+            + message
+        )
 
 st.set_page_config(
     page_title="Pearls AQI Predictor",
@@ -100,6 +166,8 @@ top[3].metric("Untouched test R²", f"{mean_metrics.get('r2', float('nan')):.3f}
 top[4].metric("Untouched test RMSE", f"{mean_metrics.get('rmse', float('nan')):.2f}" if mean_metrics else "—")
 
 daily = payload.get("daily_forecast") or []
+render_aqi_alert(daily)
+st.write("")
 columns = st.columns(3)
 for column, day in zip(columns, daily, strict=False):
     column.markdown(
