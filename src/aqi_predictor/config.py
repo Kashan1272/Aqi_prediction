@@ -216,7 +216,7 @@ def get_settings() -> Settings:
         project_root=PROJECT_ROOT,
         app_env=os.getenv("APP_ENV", "development"),
         log_level=os.getenv("LOG_LEVEL", "INFO"),
-        default_city=os.getenv("AQI_CITY", "lahore"),
+        default_city=os.getenv("AQI_CITY", "multan"),
         forecast_days=_int("FORECAST_DAYS", 3),
         backfill_days=_int("BACKFILL_DAYS", 730),
         api_timeout_seconds=_int("API_TIMEOUT_SECONDS", 120),
